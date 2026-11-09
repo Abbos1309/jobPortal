@@ -1,3 +1,4 @@
+import { ToastContainer } from "react-toastify";
 import Advice from "./_components/Advice";
 import Footer from "./_components/Footer";
 import Journey from "./_components/Journey";
@@ -9,6 +10,7 @@ import Opportunity from "./_components/Oppurtinity";
 export default function Home() {
   return (
     <div>
+      <ToastContainer position="top-right" autoClose={3000} closeOnClick={true} />
       <Navbar/>
       <Main/>
       <Advice/>

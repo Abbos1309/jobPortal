@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/supabase/utilis/clientComponents";
 import { User, LogOut } from "lucide-react";
 
+
 const supabase = createClient();
 
 function Navbar() {
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const userRole = user?.user_metadata?.role;
 
     useEffect(() => {
         // 1. Check current logged-in user
@@ -61,9 +63,19 @@ function Navbar() {
                         <a onClick={() => router.push("/jobs")} className="text-[14px] cursor-pointer font-medium text-gray-700 hover:text-sky-700 transition-colors">
                             Jobs
                         </a>
-                        <button onClick={() => router.push("/admin")} className="rounded-md cursor-pointer bg-[#0f3473] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#0b2859] shadow-sm">
-                            Post a Job
-                        </button>
+                        <div className="flex items-center gap-6 sm:gap-8">
+                           
+
+                            {/* Only show Post a Job if the logged-in user is an admin */}
+                            {userRole === "admin" && (
+                                <button
+                                    onClick={() => router.push("/admin")}
+                                    className="rounded-md cursor-pointer bg-[#0f3473] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#0b2859] shadow-sm"
+                                >
+                                    Post a Job
+                                </button>
+                            )}
+                        </div>
 
                         {/* Dynamic User Authentication State */}
                         {!loading && (
@@ -76,7 +88,7 @@ function Navbar() {
                                                 {user.user_metadata?.full_name || user.email}
                                             </span>
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={handleLogout}
                                             title="Logout"
                                             className="p-2 text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
@@ -85,8 +97,8 @@ function Navbar() {
                                         </button>
                                     </div>
                                 ) : (
-                                    <button 
-                                        onClick={() => router.push("/login")} 
+                                    <button
+                                        onClick={() => router.push("/login")}
                                         className="rounded-md cursor-pointer border border-[#0f3473] text-[#0f3473] px-4 py-2 text-[14px] font-semibold transition hover:bg-blue-50"
                                     >
                                         Sign Up

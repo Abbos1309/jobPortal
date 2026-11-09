@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Pencil, Trash2, Plus, Briefcase } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Pencil, Trash2, Plus, Briefcase, Loader2 } from "lucide-react";
 import { createClient } from "@/supabase/utilis/clientComponents";
 
 // Import shadcn/ui Dialog components
@@ -39,6 +40,12 @@ const INITIAL_FORM_STATE = {
 };
 
 export default function JobsCRUD() {
+    const router = useRouter();
+
+    // Security & Authorization States
+    const [authLoading, setAuthLoading] = useState(true);
+    const [isAdmin, setIsAdmin] = useState(false);
+
     const [jobs, setJobs] = useState<Job[]>([]);
     const [formData, setFormData] = useState(INITIAL_FORM_STATE);
 
@@ -50,9 +57,32 @@ export default function JobsCRUD() {
     const [fetchLoading, setFetchLoading] = useState(true);
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+    // 1. Check Admin Permission and Session on Mount
     useEffect(() => {
-        getJobs();
-    }, []);
+        const checkAdminAccess = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+
+            // If not logged in at all, redirect to login page
+            if (!session) {
+                router.push("/login");
+                return;
+            }
+
+            // Check if user metadata has role === "admin"
+            const userRole = session.user.user_metadata?.role;
+
+            if (userRole !== "admin") {
+                router.push("/");
+                return;
+            }
+
+            setIsAdmin(true);
+            setAuthLoading(false);
+            getJobs();
+        };
+
+        checkAdminAccess();
+    }, [router]);
 
     const getJobs = async () => {
         setFetchLoading(true);
@@ -170,6 +200,18 @@ export default function JobsCRUD() {
         });
     };
 
+    // Show a clean loader while checking admin rights
+    if (authLoading) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8fafc] gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-[#0f3473]" />
+                <p className="text-slate-500 font-medium text-sm">Verifying admin permissions...</p>
+            </div>
+        );
+    }
+
+    if (!isAdmin) return null;
+
     return (
         <div className="crud-container">
             {/* Top Dashboard Row */}
@@ -236,7 +278,7 @@ export default function JobsCRUD() {
                                         <span className="badge badge-gray">{job.category}</span>
                                     </td>
                                     <td>
-                                        <span className="badge badge-blue">{job.job_type}</span>
+                                        <span className="badge badge-blue w-18">{job.job_type}</span>
                                     </td>
                                     <td style={{ fontWeight: 500, color: "#475569" }}>{job.salary}</td>
                                     <td>

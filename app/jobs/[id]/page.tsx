@@ -88,7 +88,7 @@ export default function JobDetails() {
             job_id: id,
             full_name: fullName,
             email: email,
-            resume_url: resumePath, // Make sure your 'applications' table has a 'resume_url' text column
+            resume_url: resumePath, 
             user_id: user?.id || null,
           },
         ]);
