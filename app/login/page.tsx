@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/supabase/utilis/clientComponents";
-import { Lock, Mail, User as UserIcon, ArrowLeft, Loader2 } from "lucide-react";
+import { Lock, Mail, User as UserIcon, ArrowLeft, Loader2, Briefcase, UserCheck } from "lucide-react";
+import { toast } from "react-toastify";
 
 const supabase = createClient();
 
@@ -13,6 +14,7 @@ export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [fullName, setFullName] = useState("");
+    const [role, setRole] = useState<"user" | "admin">("user"); // "user" = Job Seeker, "admin" = Employer
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
 
@@ -30,35 +32,52 @@ export default function LoginPage() {
                     options: {
                         data: {
                             full_name: fullName,
+                            role: role, // Saves selected role into metadata
                         },
                     },
                 });
 
                 if (error) throw error;
 
-                alert("Registration successful! Check your email for confirmation (if enabled) or you can now log in.");
+                toast.success("Registration successful! You can now sign in.");
                 setIsSignUp(false);
             } else {
                 // Sign In flow
-                const { error } = await supabase.auth.signInWithPassword({
+                const { data, error } = await supabase.auth.signInWithPassword({
                     email,
                     password,
                 });
 
                 if (error) throw error;
 
-                router.push("/");
-                router.refresh();
+                toast.success("Logged in successfully!");
+                
+                // Check role to redirect employers to admin dashboard or seekers to home
+                const userRole = data.user?.user_metadata?.role;
+                
+                setTimeout(() => {
+                    if (userRole === "admin") {
+                        router.push("/admin");
+                    } else {
+                        router.push("/");
+                    }
+                    router.refresh();
+                }, 1000);
+
+                return;
             }
         } catch (err: any) {
-            setErrorMsg(err.message || "An error occurred during authentication.");
+            const message = err.message || "An error occurred during authentication.";
+            setErrorMsg(message);
+            toast.error(message);
         } finally {
+            if (!isSignUp) return;
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] text-[#1e293b] font-sans flex flex-col justify-center items-center px-4 relative">
+        <div className="min-h-screen bg-[#f8fafc] text-[#1e293b] font-sans flex flex-col justify-center items-center px-4 relative py-12">
             {/* Back to Home Button */}
             <button
                 onClick={() => router.push("/")}
@@ -78,7 +97,7 @@ export default function LoginPage() {
                         {isSignUp ? "Create an Account" : "Welcome Back"}
                     </h1>
                     <p className="text-sm text-slate-500">
-                        {isSignUp ? "Sign up to apply for jobs and upload your CV" : "Enter your credentials to access your account"}
+                        {isSignUp ? "Choose your role and register your profile" : "Enter your credentials to access your account"}
                     </p>
                 </div>
 
@@ -92,20 +111,51 @@ export default function LoginPage() {
                 {/* Form */}
                 <form onSubmit={handleAuth} className="space-y-4">
                     {isSignUp && (
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Full Name</label>
-                            <div className="relative flex items-center">
-                                <UserIcon className="absolute left-3.5 w-4 h-4 text-slate-400" />
-                                <input
-                                    type="text"
-                                    required
-                                    placeholder="John Doe"
-                                    value={fullName}
-                                    onChange={(e) => setFullName(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-3.5 py-2.5 text-sm outline-none focus:border-[#0f3473] focus:bg-white transition-all placeholder:text-slate-400"
-                                />
+                        <>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Full Name</label>
+                                <div className="relative flex items-center">
+                                    <UserIcon className="absolute left-3.5 w-4 h-4 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="John Doe"
+                                        value={fullName}
+                                        onChange={(e) => setFullName(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-3.5 py-2.5 text-sm outline-none focus:border-[#0f3473] focus:bg-white transition-all placeholder:text-slate-400"
+                                    />
+                                </div>
                             </div>
-                        </div>
+
+                            {/* Role Selector Tabs */}
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 mb-1.5">I want to:</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setRole("user")}
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
+                                            role === "user"
+                                                ? "border-[#0f3473] bg-blue-50/50 text-[#0f3473] shadow-sm"
+                                                : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                                        }`}
+                                    >
+                                        <UserCheck className="w-4 h-4" /> Find Jobs
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setRole("admin")}
+                                        className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-sm font-semibold transition-all cursor-pointer ${
+                                            role === "admin"
+                                                ? "border-[#0f3473] bg-blue-50/50 text-[#0f3473] shadow-sm"
+                                                : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                                        }`}
+                                    >
+                                        <Briefcase className="w-4 h-4" /> Post Jobs (Employer)
+                                    </button>
+                                </div>
+                            </div>
+                        </>
                     )}
 
                     <div>

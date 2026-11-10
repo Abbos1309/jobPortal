@@ -62,13 +62,11 @@ export default function JobsCRUD() {
         const checkAdminAccess = async () => {
             const { data: { session } } = await supabase.auth.getSession();
 
-            // If not logged in at all, redirect to login page
             if (!session) {
                 router.push("/login");
                 return;
             }
 
-            // Check if user metadata has role === "admin"
             const userRole = session.user.user_metadata?.role;
 
             if (userRole !== "admin") {
@@ -84,11 +82,16 @@ export default function JobsCRUD() {
         checkAdminAccess();
     }, [router]);
 
+    // Fetch only jobs created by the logged-in employer
     const getJobs = async () => {
         setFetchLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         const { data, error } = await supabase
             .from("jobs")
             .select("*")
+            .eq("employer_id", user.id)
             .order("created_at", { ascending: false });
 
         if (error) {
@@ -136,6 +139,9 @@ export default function JobsCRUD() {
         setLoading(true);
         setMessage(null);
 
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
         const requirementsArray = formData.requirements
             .split(",")
             .map((req) => req.trim())
@@ -150,6 +156,7 @@ export default function JobsCRUD() {
             job_type: formData.job_type,
             description: formData.description,
             requirements: requirementsArray,
+            employer_id: user.id, // Attach employer_id when creating
         };
 
         if (modalMode === "create") {
@@ -167,7 +174,9 @@ export default function JobsCRUD() {
             const { error } = await supabase
                 .from("jobs")
                 .update(payload)
-                .eq("id", editingJobId);
+                .eq("id", editingJobId)
+                .eq("employer_id", user.id);
+
             setLoading(false);
 
             if (error) {
@@ -200,7 +209,6 @@ export default function JobsCRUD() {
         });
     };
 
-    // Show a clean loader while checking admin rights
     if (authLoading) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8fafc] gap-3">
@@ -217,32 +225,34 @@ export default function JobsCRUD() {
             {/* Top Dashboard Row */}
             <div className="crud-header-row">
                 <div>
-                    <h1 className="crud-title">Internal Job Board</h1>
-                    <p className="crud-subtitle">Manage, create, modify, and track public job vacancies</p>
+                    <h1 className="crud-title">Employer Dashboard</h1>
+                    <p className="crud-subtitle">Manage your posted job vacancies</p>
                 </div>
-                <button onClick={openCreateModal} className="btn-primary">
-                    <Plus size={16} /> Add New Job
-                </button>
+                <div className="flex items-center gap-3">
+                    <button onClick={openCreateModal} className="btn-primary flex items-center gap-2 cursor-pointer">
+                        <Plus size={16} /> Add New Job
+                    </button>
+                </div>
             </div>
 
             {/* Notification Messages */}
             {message && (
-                <div className={`alert-message ${message.type === "success" ? "alert-success" : "alert-error"}`}>
+                <div className={`alert-message mt-6 ${message.type === "success" ? "alert-success" : "alert-error"}`}>
                     {message.text}
                 </div>
             )}
 
-            {/* Main Listings Data Table View */}
-            <div className="table-wrapper">
+            {/* Job Listings Data Table View */}
+            <div className="table-wrapper mt-6">
                 {fetchLoading ? (
                     <div style={{ padding: "3rem", textAlign: "center", color: "#64748b", fontSize: "0.875rem" }}>
-                        Gathering available job listings...
+                        Gathering your job listings...
                     </div>
                 ) : jobs.length === 0 ? (
                     <div className="empty-state">
                         <Briefcase className="empty-state-icon" />
-                        <h3 style={{ fontSize: "1rem", color: "#334155", margin: "0 0 0.25rem 0" }}>No vacancies compiled yet</h3>
-                        <p style={{ color: "#94a3b8", fontSize: "0.875rem", margin: "0" }}>Get started by creating your very first post configuration profile.</p>
+                        <h3 style={{ fontSize: "1rem", color: "#334155", margin: "0 0 0.25rem 0" }}>No vacancies posted yet</h3>
+                        <p style={{ color: "#94a3b8", fontSize: "0.875rem", margin: "0" }}>Get started by clicking &quot;Add New Job&quot; above.</p>
                     </div>
                 ) : (
                     <table className="crud-table">
@@ -283,10 +293,10 @@ export default function JobsCRUD() {
                                     <td style={{ fontWeight: 500, color: "#475569" }}>{job.salary}</td>
                                     <td>
                                         <div className="actions-cell">
-                                            <button onClick={() => openEditModal(job)} className="btn-icon btn-icon-edit" title="Modify Entry">
+                                            <button onClick={() => openEditModal(job)} className="btn-icon btn-icon-edit cursor-pointer" title="Modify Entry">
                                                 <Pencil size={16} />
                                             </button>
-                                            <button onClick={() => handleDelete(job.id)} className="btn-icon btn-icon-delete" title="Drop Listing">
+                                            <button onClick={() => handleDelete(job.id)} className="btn-icon btn-icon-delete cursor-pointer" title="Drop Listing">
                                                 <Trash2 size={16} />
                                             </button>
                                         </div>
@@ -409,10 +419,10 @@ export default function JobsCRUD() {
                         </div>
 
                         <div className="form-actions-grid">
-                            <button type="submit" disabled={loading} className="btn-primary" style={{ justifyContent: "center" }}>
+                            <button type="submit" disabled={loading} className="btn-primary cursor-pointer" style={{ justifyContent: "center" }}>
                                 {loading ? "Processing..." : modalMode === "create" ? "Add Job" : "Update Details"}
                             </button>
-                            <button type="button" onClick={closeModal} className="btn-secondary">
+                            <button type="button" onClick={closeModal} className="btn-secondary cursor-pointer">
                                 Cancel
                             </button>
                         </div>

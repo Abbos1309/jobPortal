@@ -1,13 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { createClient } from "@/supabase/utilis/clientComponents";
 
 const supabase = createClient();
 
 export default function CreateJob() {
+    const router = useRouter();
+    const [authLoading, setAuthLoading] = useState(true);
+    const [employerId, setEmployerId] = useState<string | null>(null);
+
     const [formData, setFormData] = useState({
         title: "",
         company: "",
@@ -21,6 +26,23 @@ export default function CreateJob() {
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+    // Verify logged-in employer session on mount
+    useEffect(() => {
+        const checkAuth = async () => {
+            const { data: { session }, error } = await supabase.auth.getSession();
+
+            if (error || !session) {
+                router.push("/login");
+                return;
+            }
+
+            setEmployerId(session.user.id);
+            setAuthLoading(false);
+        };
+
+        checkAuth();
+    }, [router]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         setFormData({
@@ -48,6 +70,12 @@ export default function CreateJob() {
         setLoading(true);
         setMessage(null);
 
+        if (!employerId) {
+            setMessage({ type: "error", text: "Error: You must be logged in as an employer." });
+            setLoading(false);
+            return;
+        }
+
         const requirementsArray = formData.requirements
             .split(",")
             .map((req) => req.trim())
@@ -63,6 +91,7 @@ export default function CreateJob() {
                 job_type: formData.job_type,
                 description: formData.description,
                 requirements: requirementsArray,
+                employer_id: employerId, // 👈 Links the job to this specific logged-in employer
             },
         ]);
 
@@ -75,6 +104,15 @@ export default function CreateJob() {
             handleReset();
         }
     };
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8fafc] gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-[#0f4c81]" />
+                <p className="text-slate-500 font-medium text-sm">Verifying access...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="p-12 max-w-5xl w-full mx-auto">
@@ -97,8 +135,11 @@ export default function CreateJob() {
 
                 {message && (
                     <div
-                        className={`mb-6 p-4 rounded-lg text-sm font-semibold ${message.type === "success" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
-                            }`}
+                        className={`mb-6 p-4 rounded-lg text-sm font-semibold ${
+                            message.type === "success"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-rose-50 text-rose-700 border border-rose-200"
+                        }`}
                     >
                         {message.text}
                     </div>
@@ -225,14 +266,14 @@ export default function CreateJob() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="bg-[#0f4c81] hover:bg-[#0c3e69] text-white font-bold text-sm py-2.5 rounded-lg transition-colors text-center disabled:opacity-50 shadow-sm"
+                            className="bg-[#0f4c81] hover:bg-[#0c3e69] text-white font-bold text-sm py-2.5 rounded-lg transition-colors text-center disabled:opacity-50 shadow-sm cursor-pointer"
                         >
                             {loading ? "Adding..." : "Add Job"}
                         </button>
                         <button
                             type="button"
                             onClick={handleReset}
-                            className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold py-2.5 rounded-lg transition-colors text-center shadow-sm"
+                            className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-bold py-2.5 rounded-lg transition-colors text-center shadow-sm cursor-pointer"
                         >
                             Reset
                         </button>
