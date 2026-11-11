@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, MapPin, DollarSign, ChevronDown } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search, MapPin, DollarSign, ChevronDown, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import Navbar from "../_components/Navbar";
 import { createClient } from "@/supabase/utilis/clientComponents";
 import Link from "next/link";
@@ -23,7 +23,16 @@ export default function JobPortal() {
     const [jobs, setJobs] = useState<Job[]>([]);
     const [search, setSearch] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All Categories");
-    const supabase = createClient()
+    const [selectedJobType, setSelectedJobType] = useState("All Types");
+    const [locationFilter, setLocationFilter] = useState("");
+    const [maxSalary, setMaxSalary] = useState<number | "">("");
+    const [requirementFilter, setRequirementFilter] = useState("");
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const jobsPerPage = 5;
+
+    const jobListRef = useRef<HTMLDivElement>(null);
+    const supabase = createClient();
     
     const searchParams = useSearchParams();
     const urlQuery = searchParams.get("query");
@@ -43,30 +52,72 @@ export default function JobPortal() {
 
         const { data, error } = await query;
         if (data) {
-            const filtered = data.filter((job: Job) =>
-                search === ""
-                    ? true
-                    : job.title.toLowerCase().includes(search.toLowerCase()) ||
+            const filtered = data.filter((job: Job) => {
+                // Keyword Search
+                const matchesSearch = search === "" ||
+                    job.title.toLowerCase().includes(search.toLowerCase()) ||
                     job.company.toLowerCase().includes(search.toLowerCase()) ||
-                    job.requirements.some(r => r.toLowerCase().includes(search.toLowerCase()))
-            );
+                    job.description.toLowerCase().includes(search.toLowerCase());
+
+                // Job Type Filter
+                const matchesJobType = selectedJobType === "All Types" || 
+                    job.job_type.toLowerCase() === selectedJobType.toLowerCase();
+
+                // Location Filter
+                const matchesLocation = locationFilter === "" || 
+                    job.location.toLowerCase().includes(locationFilter.toLowerCase());
+
+                // Requirement Filter
+                const matchesRequirement = requirementFilter === "" || 
+                    job.requirements.some(r => r.toLowerCase().includes(requirementFilter.toLowerCase()));
+
+                // Max Salary Filter (extracts numeric values from string like "$80,000")
+                let matchesSalary = true;
+                if (maxSalary !== "") {
+                    const salaryNums = job.salary.replace(/[^0-9]/g, "");
+                    const numericSalary = salaryNums ? parseInt(salaryNums, 10) : 0;
+                    if (numericSalary > 0 && numericSalary > Number(maxSalary)) {
+                        matchesSalary = false;
+                    }
+                }
+
+                return matchesSearch && matchesJobType && matchesLocation && matchesRequirement && matchesSalary;
+            });
+
             setJobs(filtered);
+            setCurrentPage(1);
         }
     }
 
     useEffect(() => {
         fetchJobs();
-    }, [search, selectedCategory])
+    }, [search, selectedCategory, selectedJobType, locationFilter, maxSalary, requirementFilter]);
 
     const handleReset = () => {
         setSearch("");
         setSelectedCategory("All Categories");
+        setSelectedJobType("All Types");
+        setLocationFilter("");
+        setMaxSalary("");
+        setRequirementFilter("");
+        setCurrentPage(1);
     };
+
+    const handlePageChange = (newPage: number) => {
+        setCurrentPage(newPage);
+        jobListRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    // Pagination calculations
+    const indexOfLastJob = currentPage * jobsPerPage;
+    const indexOfFirstJob = indexOfLastJob - jobsPerPage;
+    const currentJobs = jobs.slice(indexOfFirstJob, indexOfLastJob);
+    const totalPages = Math.ceil(jobs.length / jobsPerPage);
 
     return (
         <div className="min-h-screen bg-[#f8fafc] text-[#1e293b] font-sans flex flex-col">
             <Navbar />
-  
+ 
             <main className="max-w-7xl mx-auto px-8 py-10 grow w-full">
                 <div className="mb-10">
                     <h1 className="text-4xl font-extrabold text-slate-900 mb-2">Find Your Next Opportunity</h1>
@@ -74,30 +125,33 @@ export default function JobPortal() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
-                    <aside className="bg-white rounded-xl border border-slate-100 p-6 shadow-sm sticky top-24">
-                        <h2 className="text-lg font-bold text-slate-900 mb-6">Filter Jobs</h2>
+                    <aside className="bg-white rounded-xl border border-slate-100 p-6 shadow-sm sticky top-24 space-y-5">
+                        <div className="flex items-center justify-between mb-2">
+                            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                <Filter className="w-4 h-4 text-[#0f4c81]" /> Filter Jobs
+                            </h2>
+                        </div>
 
-                        <div className="mb-6">
-                            <label className="block text-sm font-semibold text-slate-600 mb-2">Search by keyword</label>
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    placeholder="Job title, company, or skills..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-3 pr-10 py-2.5 text-sm outline-none focus:border-slate-400 placeholder:text-slate-400"
-                                />
-                            </div>
+                        {/* Search by keyword */}
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Keyword</label>
+                            <input
+                                type="text"
+                                placeholder="Title, company..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-slate-400 placeholder:text-slate-400"
+                            />
                         </div>
 
                         {/* Category Filter */}
-                        <div className="mb-6">
-                            <label className="block text-sm font-semibold text-slate-600 mb-2">Category</label>
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Category</label>
                             <div className="relative">
                                 <select
                                     value={selectedCategory}
                                     onChange={(e) => setSelectedCategory(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm appearance-none outline-none focus:border-slate-400 text-slate-700 font-medium cursor-pointer"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm appearance-none outline-none focus:border-slate-400 text-slate-700 font-medium cursor-pointer"
                                 >
                                     <option value="All Categories">All Categories</option>
                                     <option value="Technology">Technology</option>
@@ -106,31 +160,82 @@ export default function JobPortal() {
                                     <option value="Sales">Sales</option>
                                     <option value="Finance">Finance</option>
                                 </select>
-                                <ChevronDown className="absolute right-3 top-3.5 w-4 h-4 text-slate-400 pointer-events-none" />
+                                <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
                             </div>
+                        </div>
+
+                        {/* Job Type Filter (Full-time / Part-time) */}
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Job Type</label>
+                            <div className="relative">
+                                <select
+                                    value={selectedJobType}
+                                    onChange={(e) => setSelectedJobType(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm appearance-none outline-none focus:border-slate-400 text-slate-700 font-medium cursor-pointer"
+                                >
+                                    <option value="All Types">All Types</option>
+                                    <option value="Full-time">Full-time</option>
+                                    <option value="Part-time">Part-time</option>
+                                    <option value="Contract">Contract</option>
+                                    <option value="Remote">Remote</option>
+                                </select>
+                                <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-slate-400 pointer-events-none" />
+                            </div>
+                        </div>
+
+                        {/* Location Filter */}
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Location</label>
+                            <input
+                                type="text"
+                                placeholder="City or Country..."
+                                value={locationFilter}
+                                onChange={(e) => setLocationFilter(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-slate-400 placeholder:text-slate-400"
+                            />
+                        </div>
+
+                        {/* Max Salary Filter */}
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Max Salary ($)</label>
+                            <input
+                                type="number"
+                                placeholder="e.g. 100000"
+                                value={maxSalary}
+                                onChange={(e) => setMaxSalary(e.target.value === "" ? "" : Number(e.target.value))}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-slate-400 placeholder:text-slate-400"
+                            />
+                        </div>
+
+                        {/* Requirement Filter */}
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Requirement Skill</label>
+                            <input
+                                type="text"
+                                placeholder="e.g. React, Python..."
+                                value={requirementFilter}
+                                onChange={(e) => setRequirementFilter(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-slate-400 placeholder:text-slate-400"
+                            />
                         </div>
 
                         {/* Reset Button */}
                         <button
                             onClick={handleReset}
-                            className="w-full bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 text-sm font-medium py-2.5 rounded-lg transition-colors mb-6"
+                            className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium py-2 rounded-lg transition-colors pt-2"
                         >
-                            Reset Filters
+                            Reset All Filters
                         </button>
-
-                        <div className="text-xs text-slate-400 font-medium">
-                            Category: <span className="text-slate-500">{selectedCategory}</span>
-                        </div>
                     </aside>
 
                     {/* Job Listings Column */}
-                    <section className="lg:col-span-3 space-y-6">
+                    <section ref={jobListRef} className="lg:col-span-3 space-y-6 scroll-mt-24">
                         <div className="flex justify-between items-center mb-2">
                             <h2 className="text-2xl font-bold text-slate-900">Available Jobs</h2>
-                            <span className="text-slate-400 text-sm font-medium">{jobs.length} positions</span>
+                            <span className="text-slate-400 text-sm font-medium">{jobs.length} positions found</span>
                         </div>
 
-                        {jobs.map((job) => {
+                        {currentJobs.map((job) => {
                             const firstLetter = job.title.charAt(0);
                             const visibleRequirements = job.requirements.slice(0, 3);
                             const extraCount = job.requirements.length - 3;
@@ -198,6 +303,29 @@ export default function JobPortal() {
                         {jobs.length === 0 && (
                             <div className="bg-white rounded-xl border border-slate-100 p-12 text-center text-slate-400">
                                 No job openings match your current search filters.
+                            </div>
+                        )}
+
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-between items-center bg-white rounded-xl border border-slate-100 p-4 shadow-sm mt-6">
+                                <button
+                                    onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    <ChevronLeft className="w-4 h-4" /> Previous
+                                </button>
+                                <span className="text-sm font-medium text-slate-600">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Next <ChevronRight className="w-4 h-4" />
+                                </button>
                             </div>
                         )}
                     </section>

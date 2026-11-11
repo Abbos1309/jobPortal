@@ -59,24 +59,55 @@ export default function ProfilePage() {
         setSaving(true);
 
         try {
-            // For now, let's keep the existing avatarUrl or a default avatar 
-            // to prevent bloating cookies until you set up a Supabase storage bucket.
+            const { data: { session } } = await supabase.auth.getSession();
+            const userId = session?.user?.id;
+            let finalAvatarUrl = avatarUrl;
+
+            // 1. Upload image to Supabase Storage if a new file is chosen
+            if (avatarFile && userId) {
+                const fileExt = avatarFile.name.split(".").pop();
+                const filePath = `${userId}-${Date.now()}.${fileExt}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from("avatars")
+                    .upload(filePath, avatarFile, { upsert: true });
+
+                if (uploadError) {
+                    throw new Error(`Storage upload failed: ${uploadError.message}`);
+                }
+
+                const { data: publicUrlData } = supabase.storage
+                    .from("avatars")
+                    .getPublicUrl(filePath);
+
+                finalAvatarUrl = publicUrlData.publicUrl;
+            }
+
+            // 2. Update Supabase User Metadata
             const full_name = `${firstName.trim()} ${lastName.trim()}`.trim();
-            
             const { error: updateError } = await supabase.auth.updateUser({
                 data: {
                     first_name: firstName,
                     last_name: lastName,
                     full_name: full_name,
-                    role: role,
-                    // Do NOT save heavy avatarBase64 strings here to prevent error 431!
+                    role: role, // Saves "user" or "employer"
+                    avatar_url: finalAvatarUrl,
                 },
             });
 
             if (updateError) throw updateError;
 
+            // Force refresh session so user_metadata updates instantly across the app
+            await supabase.auth.refreshSession();
+
+            setAvatarUrl(finalAvatarUrl);
+            setAvatarFile(null);
             toast.success("Profile updated successfully!");
+            
+            router.push("/");
+            router.refresh();
         } catch (error: any) {
+            console.error("Profile save error:", error);
             toast.error(error.message || "Failed to update profile.");
         } finally {
             setSaving(false);
@@ -138,7 +169,8 @@ export default function ProfilePage() {
                         </div>
                     </div>
 
-                    {/* Role Selection */}
+                    
+
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                             Account Type / Role
@@ -158,15 +190,15 @@ export default function ProfilePage() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setRole("employer")}
+                                onClick={() => setRole("admin")}
                                 className={`flex items-center justify-center gap-2 p-3.5 rounded-lg border text-sm font-semibold transition cursor-pointer ${
-                                    role === "employer"
+                                    role === "admin"
                                         ? "border-[#0f3473] bg-blue-50 text-[#0f3473]"
                                         : "border-gray-200 text-gray-600 hover:border-gray-300"
                                 }`}
                             >
                                 <Building2 className="w-4 h-4" />
-                                Employer
+                                Employer / Admin
                             </button>
                         </div>
                     </div>
