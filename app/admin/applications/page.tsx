@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Mail, User, Briefcase, Calendar, Search, ShieldCheck } from "lucide-react";
+import { Mail, User, Briefcase, Calendar, Search, ShieldCheck, FileText, ExternalLink } from "lucide-react";
 import Navbar from "../../_components/Navbar"; // Adjust path if necessary
 import { Application } from "@/app/types";
 import { createClient } from "@/supabase/utilis/clientComponents";
@@ -20,44 +20,82 @@ export default function AdminApplications() {
   }, []);
 
   const getApplications = async () => {
-    setLoading(true);
-    try {
-      const { data: appsData, error: appsError } = await supabase.from("applications")
+  setLoading(true);
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const isSuperAdmin = user.email === "admin@gmail.com";
+
+    let appsData;
+
+    if (isSuperAdmin) {
+      // 👑 Super-admin: Fetch ALL applications directly
+      const { data, error } = await supabase
+        .from("applications")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (appsError) throw appsError;
+      if (error) throw error;
+      appsData = data;
+    } else {
+      // 🏢 Regular Employer: Fetch applications ONLY for jobs they posted
+      const { data: employerJobs } = await supabase
+        .from("jobs")
+        .select("id")
+        .eq("employer_id", user.id);
 
-      if (appsData && appsData.length > 0) {
-        const { data: jobsData, error: jobsError } = await supabase
-          .from("jobs")
-          .select("id, title, company");
-
-        if (jobsError) throw jobsError;
-
-        const formattedApps = appsData.map((app: any) => {
-          const matchedJob = jobsData?.find((job) => String(job.id) === String(app.job_id));
-          return {
-            ...app,
-            jobs: matchedJob ? { title: matchedJob.title, company: matchedJob.company } : null
-          };
-        });
-
-        setApplications(formattedApps);
-      } else {
+      if (!employerJobs || employerJobs.length === 0) {
         setApplications([]);
+        setLoading(false);
+        return;
       }
-    } catch (error: any) {
-      console.error("Error fetching admin applications data:", error.message);
-    } finally {
-      setLoading(false);
+
+      const jobIds = employerJobs.map((j) => String(j.id));
+
+      const { data, error } = await supabase
+        .from("applications")
+        .select("*")
+        .in("job_id", jobIds)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      appsData = data;
     }
-  };
+
+    if (appsData && appsData.length > 0) {
+      // Fetch associated job titles and companies
+      const { data: jobsData } = await supabase
+        .from("jobs")
+        .select("id, title, company");
+
+      const formattedApps = appsData.map((app: any) => {
+        const matchedJob = jobsData?.find(
+          (job) => String(job.id) === String(app.job_id)
+        );
+        return {
+          ...app,
+          jobs: matchedJob
+            ? { title: matchedJob.title, company: matchedJob.company }
+            : null,
+        };
+      });
+
+      setApplications(formattedApps);
+    } else {
+      setApplications([]);
+    }
+  } catch (error: any) {
+    console.error("Error fetching applications:", error.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const filteredApplications = applications.filter((app) => {
-    const matchesName = app.full_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesEmail = app.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesJob = app.jobs?.title.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+    const matchesName = app.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+    const matchesEmail = app.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+    const matchesJob = app.jobs?.title?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
     return matchesName || matchesEmail || matchesJob;
   });
 
@@ -97,7 +135,7 @@ export default function AdminApplications() {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {filteredApplications.map((app) => {
+            {filteredApplications.map((app: any) => {
               const formattedDate = new Date(app.created_at).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
@@ -142,6 +180,24 @@ export default function AdminApplications() {
                       <span className="text-slate-600 text-sm font-medium flex items-center gap-1.5 mt-0.5">
                         <Calendar className="w-3.5 h-3.5 text-slate-400" /> {formattedDate}
                       </span>
+                    </div>
+
+                    {/* View CV Button Section */}
+                    <div>
+                      {app.resume_url ? (
+                        <a
+                          href={app.resume_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 bg-[#0f4c81] hover:bg-[#0b3860] text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                        >
+                          <FileText className="w-4 h-4" /> View CV <ExternalLink className="w-3 h-3 opacity-80" />
+                        </a>
+                      ) : (
+                        <span className="text-xs font-medium text-slate-400 bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg block">
+                          No CV Attached
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

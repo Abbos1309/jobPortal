@@ -5,26 +5,31 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/supabase/utilis/clientComponents";
 import { User, LogOut } from "lucide-react";
 
-
 const supabase = createClient();
 
 function Navbar() {
     const router = useRouter();
     const [user, setUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    
     const userRole = user?.user_metadata?.role;
+    const avatarUrl = user?.user_metadata?.avatar_url;
+    const displayName = user?.user_metadata?.full_name || user?.email || "Account";
 
     useEffect(() => {
-        // 1. Check current logged-in user
         const checkUser = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            setUser(session?.user ?? null);
-            setLoading(false);
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                setUser(session?.user ?? null);
+            } catch (error) {
+                console.error("Error fetching session:", error);
+            } finally {
+                setLoading(false);
+            }
         };
 
         checkUser();
 
-        // 2. Listen for login/logout state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setUser(session?.user ?? null);
         });
@@ -63,31 +68,41 @@ function Navbar() {
                         <a onClick={() => router.push("/jobs")} className="text-[14px] cursor-pointer font-medium text-gray-700 hover:text-sky-700 transition-colors">
                             Jobs
                         </a>
-                        <div className="flex items-center gap-6 sm:gap-8">
-                           
 
-                            {/* Only show Post a Job if the logged-in user is an admin */}
-                            {userRole === "admin" && (
-                                <button
-                                    onClick={() => router.push("/admin")}
-                                    className="rounded-md cursor-pointer bg-[#0f3473] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#0b2859] shadow-sm"
-                                >
-                                    Post a Job
-                                </button>
-                            )}
-                        </div>
+                        {userRole === "admin" && (
+                            <button
+                                onClick={() => router.push("/admin")}
+                                className="rounded-md cursor-pointer bg-[#0f3473] px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#0b2859] shadow-sm"
+                            >
+                                Post a Job
+                            </button>
+                        )}
 
-                        {/* Dynamic User Authentication State */}
                         {!loading && (
                             <div className="flex items-center gap-4 pl-4 border-l border-gray-200">
                                 {user ? (
                                     <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                                            <User className="w-4 h-4 text-[#0f3473]" />
+                                        {/* Clickable User Info (Avatar & Name redirects to Profile) */}
+                                        <button
+                                            onClick={() => router.push("/profile")}
+                                            className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-[#0f3473] transition-colors cursor-pointer group"
+                                        >
+                                            {avatarUrl ? (
+                                                <img 
+                                                    src={avatarUrl} 
+                                                    alt="Profile" 
+                                                    className="w-7 h-7 rounded-full object-cover border border-gray-300 group-hover:border-[#0f3473]" 
+                                                />
+                                            ) : (
+                                                <div className="w-7 h-7 rounded-full bg-blue-50 border border-gray-200 flex items-center justify-center group-hover:border-[#0f3473]">
+                                                    <User className="w-4 h-4 text-[#0f3473]" />
+                                                </div>
+                                            )}
                                             <span className="max-w-[150px] truncate">
-                                                {user.user_metadata?.full_name || user.email}
+                                                {displayName}
                                             </span>
-                                        </div>
+                                        </button>
+
                                         <button
                                             onClick={handleLogout}
                                             title="Logout"
@@ -107,7 +122,6 @@ function Navbar() {
                             </div>
                         )}
                     </div>
-
                 </div>
             </nav>
         </div>

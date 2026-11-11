@@ -5,7 +5,7 @@ import Journey from "./_components/Journey";
 import Main from "./_components/Main";
 import Navbar from "./_components/Navbar";
 import Opportunity from "./_components/Oppurtinity";
-
+import "react-toastify/dist/ReactToastify.css";
 
 export default function Home() {
   return (

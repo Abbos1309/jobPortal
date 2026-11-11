@@ -31,7 +31,7 @@ export default function JobDetails() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [cvFile, setCvFile] = useState<File | null>(null); // NEW: CV state
+  const [cvFile, setCvFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -58,29 +58,34 @@ export default function JobDetails() {
     setSubmitting(true);
 
     try {
-      // 1. Get current user (if logged in)
+      // 1. Get current user
       const { data: { user } } = await supabase.auth.getUser();
 
-      let resumePath = null;
+      let publicResumeUrl = null;
 
-      // 2. Handle CV file upload to Supabase Storage
+      // 2. Handle CV file upload to Supabase Storage & Get Public URL
       if (cvFile) {
         const fileExt = cvFile.name.split(".").pop();
         const userFolder = user?.id || "guest";
         const filePath = `${userFolder}/${Date.now()}.${fileExt}`;
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("resumes") // Ensure you have a 'resumes' bucket in Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from("resumes")
           .upload(filePath, cvFile);
 
         if (uploadError) {
           throw new Error(`CV Upload failed: ${uploadError.message}`);
         }
 
-        resumePath = uploadData.path;
+        // 👈 FIX: Get the full absolute HTTPS public URL for the uploaded file
+        const { data: urlData } = supabase.storage
+          .from("resumes")
+          .getPublicUrl(filePath);
+
+        publicResumeUrl = urlData.publicUrl;
       }
 
-      // 3. Save application data (including resume path) to Database
+      // 3. Save application data with the full public URL to Database
       const { error: dbError } = await supabase
         .from("applications")
         .insert([
@@ -88,7 +93,7 @@ export default function JobDetails() {
             job_id: id,
             full_name: fullName,
             email: email,
-            resume_url: resumePath, 
+            resume_url: publicResumeUrl, // 👈 Saves full https://... url instead of relative path
             user_id: user?.id || null,
           },
         ]);
@@ -122,7 +127,7 @@ export default function JobDetails() {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center space-y-4">
         <p className="text-slate-600 font-semibold">Job position not found.</p>
-        <button onClick={() => router.push("/jobs")} className="text-[#0f4c81] font-medium flex items-center gap-1">
+        <button onClick={() => router.push("/jobs")} className="text-[#0f4c81] font-medium flex items-center gap-1 cursor-pointer">
           <ArrowLeft className="w-4 h-4" /> Back to Jobs
         </button>
       </div>

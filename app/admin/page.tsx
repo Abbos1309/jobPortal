@@ -84,24 +84,28 @@ export default function JobsCRUD() {
 
     // Fetch only jobs created by the logged-in employer
     const getJobs = async () => {
-        setFetchLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+  setFetchLoading(true);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
 
-        const { data, error } = await supabase
-            .from("jobs")
-            .select("*")
-            .eq("employer_id", user.id)
-            .order("created_at", { ascending: false });
+  const isSuperAdmin = user.email === "admin@gmail.com";
 
-        if (error) {
-            setMessage({ type: "error", text: `Failed to load jobs: ${error.message}` });
-        } else {
-            setJobs(data || []);
-        }
-        setFetchLoading(false);
-    };
+  let query = supabase.from("jobs").select("*").order("created_at", { ascending: false });
 
+  // If not super-admin, filter by employer_id
+  if (!isSuperAdmin) {
+    query = query.eq("employer_id", user.id);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    setMessage({ type: "error", text: `Failed to load jobs: ${error.message}` });
+  } else {
+    setJobs(data || []);
+  }
+  setFetchLoading(false);
+};
     const openCreateModal = () => {
         resetForm();
         setModalMode("create");
@@ -288,7 +292,7 @@ export default function JobsCRUD() {
                                         <span className="badge badge-gray">{job.category}</span>
                                     </td>
                                     <td>
-                                        <span className="badge badge-blue w-18">{job.job_type}</span>
+                                        <span className="badge badge-blue w-20 h-8 flex justify-center items-center">{job.job_type}</span>
                                     </td>
                                     <td style={{ fontWeight: 500, color: "#475569" }}>{job.salary}</td>
                                     <td>
