@@ -25,7 +25,6 @@ export default function JobPortal() {
     const [selectedCategory, setSelectedCategory] = useState("All Categories");
     const [selectedJobType, setSelectedJobType] = useState("All Types");
     const [locationFilter, setLocationFilter] = useState("");
-    const [maxSalary, setMaxSalary] = useState<number | "">("");
     const [requirementFilter, setRequirementFilter] = useState("");
 
     const [currentPage, setCurrentPage] = useState(1);
@@ -71,17 +70,7 @@ export default function JobPortal() {
                 const matchesRequirement = requirementFilter === "" || 
                     job.requirements.some(r => r.toLowerCase().includes(requirementFilter.toLowerCase()));
 
-                // Max Salary Filter (extracts numeric values from string like "$80,000")
-                let matchesSalary = true;
-                if (maxSalary !== "") {
-                    const salaryNums = job.salary.replace(/[^0-9]/g, "");
-                    const numericSalary = salaryNums ? parseInt(salaryNums, 10) : 0;
-                    if (numericSalary > 0 && numericSalary > Number(maxSalary)) {
-                        matchesSalary = false;
-                    }
-                }
-
-                return matchesSearch && matchesJobType && matchesLocation && matchesRequirement && matchesSalary;
+                return matchesSearch && matchesJobType && matchesLocation && matchesRequirement;
             });
 
             setJobs(filtered);
@@ -91,14 +80,13 @@ export default function JobPortal() {
 
     useEffect(() => {
         fetchJobs();
-    }, [search, selectedCategory, selectedJobType, locationFilter, maxSalary, requirementFilter]);
+    }, [search, selectedCategory, selectedJobType, locationFilter, requirementFilter]);
 
     const handleReset = () => {
         setSearch("");
         setSelectedCategory("All Categories");
         setSelectedJobType("All Types");
         setLocationFilter("");
-        setMaxSalary("");
         setRequirementFilter("");
         setCurrentPage(1);
     };
@@ -195,18 +183,6 @@ export default function JobPortal() {
                             />
                         </div>
 
-                        {/* Max Salary Filter */}
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Max Salary ($)</label>
-                            <input
-                                type="number"
-                                placeholder="e.g. 100000"
-                                value={maxSalary}
-                                onChange={(e) => setMaxSalary(e.target.value === "" ? "" : Number(e.target.value))}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-slate-400 placeholder:text-slate-400"
-                            />
-                        </div>
-
                         {/* Requirement Filter */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">Requirement Skill</label>
@@ -222,7 +198,7 @@ export default function JobPortal() {
                         {/* Reset Button */}
                         <button
                             onClick={handleReset}
-                            className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium py-2 rounded-lg transition-colors pt-2"
+                            className="w-full cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium py-2 rounded-lg transition-colors pt-2"
                         >
                             Reset All Filters
                         </button>
@@ -312,7 +288,7 @@ export default function JobPortal() {
                                 <button
                                     onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
                                     disabled={currentPage === 1}
-                                    className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    className="flex cursor-pointer items-center gap-1 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 >
                                     <ChevronLeft className="w-4 h-4" /> Previous
                                 </button>
@@ -322,7 +298,7 @@ export default function JobPortal() {
                                 <button
                                     onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
                                     disabled={currentPage === totalPages}
-                                    className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                    className="flex cursor-pointer items-center gap-1 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                 >
                                     Next <ChevronRight className="w-4 h-4" />
                                 </button>

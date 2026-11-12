@@ -26,14 +26,13 @@ export default function LoginPage() {
 
         try {
             if (isSignUp) {
-                // Sign Up flow
                 const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
                     options: {
                         data: {
                             full_name: fullName,
-                            role: role, // Saves selected role into metadata
+                            role: role,
                         },
                     },
                 });
@@ -43,7 +42,6 @@ export default function LoginPage() {
                 toast.success("Registration successful! You can now sign in.");
                 setIsSignUp(false);
             } else {
-                // Sign In flow
                 const { data, error } = await supabase.auth.signInWithPassword({
                     email,
                     password,
@@ -53,7 +51,6 @@ export default function LoginPage() {
 
                 toast.success("Logged in successfully!");
 
-                // Check role to redirect employers to admin dashboard or seekers to home
                 const userRole = data.user?.user_metadata?.role;
 
                 setTimeout(() => {
@@ -72,7 +69,6 @@ export default function LoginPage() {
             setErrorMsg(message);
             toast.error(message);
         } finally {
-            if (!isSignUp) return;
             setLoading(false);
         }
     };
@@ -82,7 +78,7 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: {
-                redirectTo: `${window.location.origin}/auth/callback`, // Redirect back to your app after login
+                redirectTo: `${window.location.origin}/auth/callback`,
             },
         });
 
@@ -99,7 +95,6 @@ export default function LoginPage() {
 
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                // This redirects them to your update password page once they click the email link
                 redirectTo: `${window.location.origin}/auth/update-password`,
             });
 
@@ -117,7 +112,6 @@ export default function LoginPage() {
 
     return (
         <div className="min-h-screen bg-[#f8fafc] text-[#1e293b] font-sans flex flex-col justify-center items-center px-4 relative py-12">
-            {/* Back to Home Button */}
             <button
                 onClick={() => router.push("/")}
                 className="absolute top-6 left-6 flex items-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm cursor-pointer"
@@ -127,7 +121,6 @@ export default function LoginPage() {
 
             <div className="w-full max-w-md bg-white rounded-2xl border border-slate-100 shadow-xl p-8 space-y-6">
 
-                {/* Header Branding */}
                 <div className="text-center space-y-2">
                     <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#0f3473] font-bold text-white text-base tracking-wider shadow-md">
                         JP
@@ -144,16 +137,13 @@ export default function LoginPage() {
                     </p>
                 </div>
 
-                {/* Error Banner */}
                 {errorMsg && (
                     <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm font-medium">
                         {errorMsg}
                     </div>
                 )}
 
-                {/* Conditional Form Switching */}
                 {isForgotPassword ? (
-                    /* FORGOT PASSWORD FORM */
                     <form onSubmit={handleForgotPassword} className="space-y-4">
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email Address</label>
@@ -193,7 +183,6 @@ export default function LoginPage() {
                         </div>
                     </form>
                 ) : (
-                    /* NORMAL SIGN IN / SIGN UP FORM */
                     <form onSubmit={handleAuth} className="space-y-4">
                         {isSignUp && (
                             <>
@@ -212,7 +201,6 @@ export default function LoginPage() {
                                     </div>
                                 </div>
 
-                                {/* Role Selector Tabs */}
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">I want to:</label>
                                     <div className="grid grid-cols-2 gap-3">
@@ -298,7 +286,6 @@ export default function LoginPage() {
                     </form>
                 )}
 
-                {/* Footer and Google Auth (Hidden on Forgot Password view for clarity) */}
                 {!isForgotPassword && (
                     <div className="text-center pt-2 border-t border-slate-100 space-y-4">
                         <p className="text-sm text-slate-600">
