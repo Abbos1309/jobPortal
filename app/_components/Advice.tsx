@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { motion } from 'framer-motion'
+import { motion, Variants } from 'framer-motion'
 
 function Advice() {
     // Parent container variant to handle staggered arrivals smoothly
@@ -16,8 +16,13 @@ function Advice() {
         }
     }
 
+    
+
+
+
+
     // Individual card variant - drops DOWN subtly from -20px instead of a harsh -50px
-    const cardVariants = {
+    const cardVariants:Variants = {
         hidden: {
             opacity: 0,
             y: -20
@@ -65,7 +70,6 @@ function Advice() {
                     We've designed the most intuitive job search platform to help you find opportunities that align with your career goals.
                 </motion.p>
 
-                {/* Grid container tracks scroll trigger */}
                 <motion.div
                     variants={containerVariants}
                     initial="hidden"
