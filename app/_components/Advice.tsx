@@ -22,21 +22,18 @@ function Advice() {
 
 
     // Individual card variant - drops DOWN subtly from -20px instead of a harsh -50px
-    const cardVariants:Variants = {
-        hidden: {
-            opacity: 0,
-            y: -20
-        },
-        visible: {
-            opacity: 1,
-            y: 0,
-            transition: {
-                type: "spring",
-                stiffness: 100, // Slightly snappier spring
-                damping: 15     // Smooths out the bounce
-            }
-        }
-    }
+    const cardVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { 
+      type: "spring", // If using spring, ensure proper types or remove if using duration
+      stiffness: 100,
+      damping: 10
+    } as any // Casts transition to bypass strict type inference rules during build
+  },
+};
 
     const features = [
         { icon: "🔍", title: "Powerful Search", desc: "Advanced filtering by job title, category, and more. Find exactly what you're looking for in seconds." },
